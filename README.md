@@ -9,4 +9,4 @@ uart_dr16
 - task_stack_depth_uart: 2048
 
 ## Depends
-- null
+- None
