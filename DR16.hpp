@@ -36,7 +36,7 @@ class DR16 : public LibXR::Application {
   };
 
   enum class Key : uint8_t {
-    KEY_W = SwitchPos::DR16_SW_POS_NUM,
+    KEY_W = static_cast<uint8_t>(SwitchPos::DR16_SW_POS_NUM),
     KEY_S,
     KEY_A,
     KEY_D,
