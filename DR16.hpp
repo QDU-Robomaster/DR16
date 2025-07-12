@@ -17,7 +17,6 @@ required_hardware: dr16 dma uart
 #define DR16_CH_VALUE_MID (1024u)
 #define DR16_CH_VALUE_MAX (1684u)
 
-template <typename HardwareContainer>
 class DR16 : public LibXR::Application {
  public:
   enum class ControlSource : uint8_t {
@@ -98,7 +97,7 @@ class DR16 : public LibXR::Application {
     uint16_t res;
   };
 
-  DR16(HardwareContainer &hw, LibXR::ApplicationManager &app,
+  DR16(LibXR::HardwareContainer &hw, LibXR::ApplicationManager &app,
        uint32_t task_stack_depth_uart)
       : uart_(hw.template Find<LibXR::UART>("uart_dr16")), sem(0), op(sem) {
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
