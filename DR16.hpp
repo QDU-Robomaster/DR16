@@ -58,11 +58,15 @@ class DR16 : public LibXR::Application {
     KEY_NUM,
   };
 
-  constexpr uint32_t ShiftWith(Key key) { return key + 1 * Key::KEY_NUM; }
-  constexpr uint32_t CtrlWith(Key key) { return key + 2 * Key::KEY_NUM; }
-  constexpr uint32_t ShiftCtrlWith(Key key) { return key + 3 * Key::KEY_NUM; }
-
-  constexpr uint32_t RawValue(Key key) { return 1 << (key - Key::KEY_W); }
+  constexpr uint32_t ShiftWith(Key key) {
+    return static_cast<uint8_t>(key) + 1 * static_cast<uint8_t>(Key::KEY_NUM);
+  }
+  constexpr uint32_t CtrlWith(Key key) {
+    return static_cast<uint8_t>(key) + 2 * static_cast<uint8_t>(Key::KEY_NUM);
+  }
+  constexpr uint32_t ShiftCtrlWith(Key key) {
+    return static_cast<uint8_t>(key) + 3 * static_cast<uint8_t>(Key::KEY_NUM);
+  }
 
   typedef struct __attribute__((packed)) {
     uint16_t ch_r_x : 11;
