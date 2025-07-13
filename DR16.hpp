@@ -58,12 +58,29 @@ class DR16 : public LibXR::Application {
     KEY_NUM,
   };
 
+  /**
+   * @brief 计算Shift组合键的编码值
+   * @param key 基础按键
+   * @return Shift组合键的编码值
+   */
   constexpr uint32_t ShiftWith(Key key) {
     return static_cast<uint8_t>(key) + 1 * static_cast<uint8_t>(Key::KEY_NUM);
   }
+
+  /**
+   * @brief 计算Ctrl组合键的编码值
+   * @param key 基础按键
+   * @return Ctrl组合键的编码值
+   */
   constexpr uint32_t CtrlWith(Key key) {
     return static_cast<uint8_t>(key) + 2 * static_cast<uint8_t>(Key::KEY_NUM);
   }
+
+  /**
+   * @brief 计算Shift+Ctrl组合键的编码值
+   * @param key 基础按键
+   * @return Shift+Ctrl组合键的编码值
+   */
   constexpr uint32_t ShiftCtrlWith(Key key) {
     return static_cast<uint8_t>(key) + 3 * static_cast<uint8_t>(Key::KEY_NUM);
   }
@@ -84,23 +101,12 @@ class DR16 : public LibXR::Application {
     uint16_t res;
   } Data;
 
-  // 用于直接查看数据的普通结构体（不使用位域）
-  struct DataView {
-    uint16_t ch_r_x;
-    uint16_t ch_r_y;
-    uint16_t ch_l_x;
-    uint16_t ch_l_y;
-    uint8_t sw_r;
-    uint8_t sw_l;
-    int16_t x;
-    int16_t y;
-    int16_t z;
-    uint8_t press_l;
-    uint8_t press_r;
-    uint16_t key;
-    uint16_t res;
-  };
-
+  /**
+   * @brief DR16构造函数
+   * @param hw 硬件容器引用
+   * @param app 应用管理器引用
+   * @param task_stack_depth_uart UART任务栈深度
+   */
   DR16(LibXR::HardwareContainer &hw, LibXR::ApplicationManager &app,
        uint32_t task_stack_depth_uart)
       : uart_(hw.template Find<LibXR::UART>("uart_dr16")), sem(0), op(sem) {
@@ -113,8 +119,15 @@ class DR16 : public LibXR::Application {
     app.Register(*this);
   }
 
+  /**
+   * @brief 监控函数重写
+   */
   void OnMonitor() override {}
 
+  /**
+   * @brief DR16 UART读取线程函数
+   * @param dr16 DR16实例指针
+   */
   static void Thread_Dr16(DR16 *dr16) {
     dr16->uart_->read_port_->Reset();
 
@@ -124,12 +137,18 @@ class DR16 : public LibXR::Application {
         dr16->uart_->read_port_->Reset();
         LibXR::Thread::Sleep(3);
       } else {
+#ifdef LIBXR_DEBUG_BUILD
         dr16->DataviewToData(dr16->data_view_, dr16->data_);
+#endif
         dr16->cmd_tp_.Publish(dr16->data_);
       }
     }
   }
 
+  /**
+   * @brief 检查接收数据是否损坏
+   * @return true 数据损坏，false 数据正常
+   */
   bool DataCorrupted() {
     if ((data_.ch_r_x < DR16_CH_VALUE_MIN) ||
         (data_.ch_r_x > DR16_CH_VALUE_MAX)) {
@@ -157,7 +176,33 @@ class DR16 : public LibXR::Application {
 
     return false;
   }
-void DataviewToData(DataView &data_view, Data &data) {
+
+#ifdef LIBXR_DEBUG_BUILD
+  /**
+   * @brief 用于调试的数据视图结构体（非位域）
+   */
+  struct DataView {
+    uint16_t ch_r_x;
+    uint16_t ch_r_y;
+    uint16_t ch_l_x;
+    uint16_t ch_l_y;
+    uint8_t sw_r;
+    uint8_t sw_l;
+    int16_t x;
+    int16_t y;
+    int16_t z;
+    uint8_t press_l;
+    uint8_t press_r;
+    uint16_t key;
+    uint16_t res;
+  };
+
+  /**
+   * @brief 将位域数据转换为普通结构体数据（调试用）
+   * @param data_view 输出的数据视图
+   * @param data 输入的位域数据
+   */
+  void DataviewToData(DataView &data_view, Data &data) {
     data_view.ch_r_x = data.ch_r_x;
     data_view.ch_r_y = data.ch_r_y;
     data_view.ch_l_x = data.ch_l_x;
@@ -172,10 +217,13 @@ void DataviewToData(DataView &data_view, Data &data) {
     data_view.key = data.key;
     data_view.res = data.res;
   }
+#endif
 
  private:
   Data data_;
+#ifdef LIBXR_DEBUG_BUILD
   DataView data_view_;
+#endif
 
   LibXR::UART *uart_;
   LibXR::Thread thread_uart_;
