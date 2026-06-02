@@ -306,10 +306,9 @@ class DR16 : public LibXR::Application {
     output_data.gimbal.yaw =
         -2 * (static_cast<float>(curr_rc.ch_r_x) - DR16_CH_VALUE_MID) *
         INV_FULL_RANGE;
-    output_data.gimbal.rol =
+    output_data.gimbal.pit =
         2 * (static_cast<float>(curr_rc.ch_r_y) - DR16_CH_VALUE_MID) *
         INV_FULL_RANGE;
-    output_data.gimbal.pit = 0.0f;
 
     if (curr_rc.key & RawValue(Key::KEY_A)) {
       output_data.chassis.x -= 1.0f;
@@ -326,7 +325,7 @@ class DR16 : public LibXR::Application {
 
     output_data.chassis.self_define = CMD::ChasStat::NONE;
 
-    output_data.gimbal.rol += static_cast<float>(curr_rc.y) * MOUSE_SCALER;
+    output_data.gimbal.pit += static_cast<float>(curr_rc.y) * MOUSE_SCALER;
     output_data.gimbal.yaw += -static_cast<float>(curr_rc.x) * MOUSE_SCALER;
 
     if (curr_rc.key & RawValue(Key::KEY_SHIFT) or
@@ -362,7 +361,6 @@ class DR16 : public LibXR::Application {
     cmd_data_.chassis.self_define = CMD::ChasStat::NONE;
 
     cmd_data_.gimbal.yaw = 0;
-    cmd_data_.gimbal.rol = 0;
     cmd_data_.gimbal.pit = 0;
 
     cmd_data_.launcher.isfire = false;
