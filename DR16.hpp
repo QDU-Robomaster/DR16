@@ -168,8 +168,6 @@ class DR16 : public LibXR::Application {
    * @param dr16 DR16实例指针
    */
   static void ThreadDr16(DR16* dr16) {
-    dr16->uart_->read_port_->Reset();
-
     constexpr std::size_t RX_BUFFER_SIZE = 18;
     uint8_t rx_buffer[RX_BUFFER_SIZE] = {0};
     CMD::Data rc_data;
@@ -182,7 +180,6 @@ class DR16 : public LibXR::Application {
           dr16->last_time_ = LibXR::Timebase::GetMilliseconds();
           dr16->cmd_->FeedRC(CMD::RCInputSource::RC_INPUT_DR16, rc_data);
         } else {
-          dr16->uart_->read_port_->Reset();
           LibXR::Memory::FastSet(rx_buffer, 0, RX_BUFFER_SIZE);
         }
       }
