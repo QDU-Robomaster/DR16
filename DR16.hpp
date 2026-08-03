@@ -5,10 +5,12 @@
 module_name: DR16
 module_description: Receiver parsing
 constructor_args:
-  - CMD: '@cmd'
+  - CMD: '@nullptr'
   - task_stack_depth_uart: 2048
   - thread_priority_uart: LibXR::Thread::Priority::HIGH
 required_hardware: dr16 dma uart
+depends:
+  - qdu-future/CMD
 === END MANIFEST === */
 // clang-format on
 
@@ -18,6 +20,7 @@ required_hardware: dr16 dma uart
 
 #include "CMD.hpp"
 #include "app_framework.hpp"
+#include "libxr_def.hpp"
 #include "thread.hpp"
 #include "timebase.hpp"
 #include "uart.hpp"
@@ -137,20 +140,30 @@ class DR16 : public LibXR::Application {
    * @param task_stack_depth_uart UART任务栈深度
    * @param cmd_data_tp_name CMD数据主题名称
    */
-  DR16(LibXR::HardwareContainer& hw, LibXR::ApplicationManager& app, CMD& cmd,
+  DR16(LibXR::HardwareContainer& hw, LibXR::ApplicationManager& app, CMD* cmd,
        uint32_t task_stack_depth_uart,
        LibXR::Thread::Priority thread_priority_uart =
            LibXR::Thread::Priority::MEDIUM)
-      : cmd_(&cmd),
-        uart_(hw.Find<LibXR::UART>("uart_dr16")),
-        sem_(0),
-        op_(sem_, 4) {
+      : cmd_(cmd), uart_(nullptr), sem_(0), op_(sem_, 4) {
+    ASSERT(cmd_ != nullptr);
+
+    uart_ = hw.Find<LibXR::UART>("uart_dr16");
+    if (uart_ == nullptr) {
+      return;
+    }
+
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
     /* 创建UART线程 */
     thread_uart_.Create(this, ThreadDr16, "uart_dr16", task_stack_depth_uart,
                         thread_priority_uart);
     app.Register(*this);
   }
+
+  DR16(LibXR::HardwareContainer& hw, LibXR::ApplicationManager& app, CMD& cmd,
+       uint32_t task_stack_depth_uart,
+       LibXR::Thread::Priority thread_priority_uart =
+           LibXR::Thread::Priority::MEDIUM)
+      : DR16(hw, app, &cmd, task_stack_depth_uart, thread_priority_uart) {}
 
   /**
    * @brief 获取 DR16 的事件处理器
