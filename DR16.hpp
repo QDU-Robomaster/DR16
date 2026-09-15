@@ -1,14 +1,12 @@
 #pragma once
 
 /* clang-format off */
-/* === MODULE MANIFEST ===
+/* === MODULE MANIFEST V2 ===
 module_name: DR16
 module_description: Receiver parsing
-constructor_args:
-  - CMD: '@cmd'
-  - task_stack_depth_uart: 2048
-  - thread_priority_uart: LibXR::Thread::Priority::HIGH
-required_hardware: dr16 dma uart
+depends:
+- id: QDU-Robomaster/CMD
+  ref: same-or-dev
 === END MANIFEST === */
 // clang-format on
 
@@ -17,7 +15,6 @@ required_hardware: dr16 dma uart
 #include <cstring>
 
 #include "CMD.hpp"
-#include "app_framework.hpp"
 #include "thread.hpp"
 #include "timebase.hpp"
 #include "uart.hpp"
@@ -34,12 +31,14 @@ required_hardware: dr16 dma uart
  * @brief DR16遥控器数据解析类
  * @details 负责接收和解析DR16遥控器的数据，包括摇杆���拨杆和按键等信息
  */
-class DR16 : public LibXR::Application {
+class DR16
+{
  public:
   /**
    * @brief 拨杆开关位置枚举
    */
-  enum class SwitchPos : uint8_t {
+  enum class SwitchPos : uint8_t
+  {
     DR16_SW_L_POS_TOP = 0x00,
     DR16_SW_L_POS_BOT = 0x01,
     DR16_SW_L_POS_MID = 0x02,
@@ -55,7 +54,8 @@ class DR16 : public LibXR::Application {
     SET_MODE_ROTOR,
     SET_MODE_INDENPENDENT,
    */
-  enum class Key : uint8_t {
+  enum class Key : uint8_t
+  {
     KEY_W = static_cast<uint8_t>(SwitchPos::DR16_SW_POS_NUM),
     KEY_S,
     KEY_A,
@@ -84,7 +84,8 @@ class DR16 : public LibXR::Application {
    * @param key 基础按键
    * @return Shift组合键的编码值
    */
-  constexpr uint32_t ShiftWith(Key key) {
+  constexpr uint32_t ShiftWith(Key key)
+  {
     return static_cast<uint8_t>(key) + 1 * static_cast<uint8_t>(Key::KEY_NUM);
   }
 
@@ -93,7 +94,8 @@ class DR16 : public LibXR::Application {
    * @param key 基础按键
    * @return Ctrl组合键的编码值
    */
-  constexpr uint32_t CtrlWith(Key key) {
+  constexpr uint32_t CtrlWith(Key key)
+  {
     return static_cast<uint8_t>(key) + 2 * static_cast<uint8_t>(Key::KEY_NUM);
   }
 
@@ -102,18 +104,22 @@ class DR16 : public LibXR::Application {
    * @param key 基础按键
    * @return Shift+Ctrl组合键的编码值
    */
-  constexpr uint32_t ShiftCtrlWith(Key key) {
+  constexpr uint32_t ShiftCtrlWith(Key key)
+  {
     return static_cast<uint8_t>(key) + 3 * static_cast<uint8_t>(Key::KEY_NUM);
   }
 
-  constexpr uint32_t RawValue(Key key) {
-    if (key >= Key::KEY_NUM) {
+  constexpr uint32_t RawValue(Key key)
+  {
+    if (key >= Key::KEY_NUM)
+    {
       return 0;
     }
     return 1 << (static_cast<uint8_t>(key) - static_cast<uint8_t>(Key::KEY_W));
   }
 
-  typedef struct __attribute__((packed)) {
+  typedef struct __attribute__((packed))
+  {
     uint16_t ch_r_x;
     uint16_t ch_r_y;
     uint16_t ch_l_x;
@@ -131,25 +137,18 @@ class DR16 : public LibXR::Application {
 
   /**
    * @brief DR16构造函数
-   * @param hw 硬件容器引用
-   * @param app 应用管理器引用
    * @param cmd 控制命令对象引用
    * @param task_stack_depth_uart UART任务栈深度
    * @param cmd_data_tp_name CMD数据主题名称
    */
-  DR16(LibXR::HardwareContainer& hw, LibXR::ApplicationManager& app, CMD& cmd,
-       uint32_t task_stack_depth_uart,
-       LibXR::Thread::Priority thread_priority_uart =
-           LibXR::Thread::Priority::MEDIUM)
-      : cmd_(&cmd),
-        uart_(hw.Find<LibXR::UART>("uart_dr16")),
-        sem_(0),
-        op_(sem_, 4) {
+  DR16(LibXR::UART* external_uart_dr16, CMD& cmd, uint32_t task_stack_depth_uart,
+       LibXR::Thread::Priority thread_priority_uart = LibXR::Thread::Priority::MEDIUM)
+      : cmd_(&cmd), uart_(external_uart_dr16), sem_(0), op_(sem_, 4)
+  {
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
     /* 创建UART线程 */
     thread_uart_.Create(this, ThreadDr16, "uart_dr16", task_stack_depth_uart,
                         thread_priority_uart);
-    app.Register(*this);
   }
 
   /**
@@ -161,25 +160,31 @@ class DR16 : public LibXR::Application {
   /**
    * @brief 监控函数重写
    */
-  void OnMonitor() override {}
+  void OnMonitor() {}
 
   /**
    * @brief DR16 UART读取线程函数
    * @param dr16 DR16实例指针
    */
-  static void ThreadDr16(DR16* dr16) {
+  static void ThreadDr16(DR16* dr16)
+  {
     constexpr std::size_t RX_BUFFER_SIZE = 18;
     uint8_t rx_buffer[RX_BUFFER_SIZE] = {0};
     CMD::Data rc_data;
 
     auto last_time = LibXR::Timebase::GetMilliseconds();
-    while (1) {
+    while (1)
+    {
       if (dr16->uart_->Read({rx_buffer, RX_BUFFER_SIZE}, dr16->op_) ==
-          LibXR::ErrorCode::OK) {
-        if (dr16->ParseRC(rx_buffer, rc_data) == LibXR::ErrorCode::OK) {
+          LibXR::ErrorCode::OK)
+      {
+        if (dr16->ParseRC(rx_buffer, rc_data) == LibXR::ErrorCode::OK)
+        {
           dr16->last_time_ = LibXR::Timebase::GetMilliseconds();
           dr16->cmd_->FeedRC(CMD::RCInputSource::RC_INPUT_DR16, rc_data);
-        } else {
+        }
+        else
+        {
           LibXR::Memory::FastSet(rx_buffer, 0, RX_BUFFER_SIZE);
         }
       }
@@ -197,8 +202,10 @@ class DR16 : public LibXR::Application {
    * @param output_data 解析后的 CMD 数据 (用于提交给云台)
    * @return true 解析成功, false 数据无效
    */
-  LibXR::ErrorCode ParseRC(const uint8_t* raw_data, CMD::Data& output_data) {
-    if (!raw_data) {
+  LibXR::ErrorCode ParseRC(const uint8_t* raw_data, CMD::Data& output_data)
+  {
+    if (!raw_data)
+    {
       return LibXR::ErrorCode::PTR_NULL;
     };
 
@@ -206,8 +213,7 @@ class DR16 : public LibXR::Application {
 
     curr_rc.ch_r_x = ((raw_data[0] | raw_data[1] << 8) & 0x07FF);
     curr_rc.ch_r_y = ((raw_data[1] >> 3 | raw_data[2] << 5) & 0x07FF);
-    curr_rc.ch_l_x =
-        ((raw_data[2] >> 6 | raw_data[3] << 2 | raw_data[4] << 10) & 0x07FF);
+    curr_rc.ch_l_x = ((raw_data[2] >> 6 | raw_data[3] << 2 | raw_data[4] << 10) & 0x07FF);
     curr_rc.ch_l_y = ((raw_data[4] >> 1 | raw_data[5] << 7) & 0x07FF);
 
     curr_rc.sw_r = ((raw_data[5] >> 4) & 0x0003);  // bits 4-5
@@ -228,47 +234,48 @@ class DR16 : public LibXR::Application {
     this->data_review_ = curr_rc;
 #endif
 
-    if (curr_rc.ch_l_x < DR16_CH_VALUE_MIN ||
-        curr_rc.ch_l_x > DR16_CH_VALUE_MAX ||
-        curr_rc.ch_l_y < DR16_CH_VALUE_MIN ||
-        curr_rc.ch_l_y > DR16_CH_VALUE_MAX ||
-        curr_rc.ch_r_x < DR16_CH_VALUE_MIN ||
-        curr_rc.ch_r_x > DR16_CH_VALUE_MAX ||
-        curr_rc.ch_r_y < DR16_CH_VALUE_MIN ||
-        curr_rc.ch_r_y > DR16_CH_VALUE_MAX) {
+    if (curr_rc.ch_l_x < DR16_CH_VALUE_MIN || curr_rc.ch_l_x > DR16_CH_VALUE_MAX ||
+        curr_rc.ch_l_y < DR16_CH_VALUE_MIN || curr_rc.ch_l_y > DR16_CH_VALUE_MAX ||
+        curr_rc.ch_r_x < DR16_CH_VALUE_MIN || curr_rc.ch_r_x > DR16_CH_VALUE_MAX ||
+        curr_rc.ch_r_y < DR16_CH_VALUE_MIN || curr_rc.ch_r_y > DR16_CH_VALUE_MAX)
+    {
       return LibXR::ErrorCode::CHECK_ERR;
     }
 
-    if (curr_rc.sw_l == 0 || curr_rc.sw_r == 0) {
+    if (curr_rc.sw_l == 0 || curr_rc.sw_r == 0)
+    {
       return LibXR::ErrorCode::CHECK_ERR;
     }
 
     output_data = CMD::Data();
 
-    if (curr_rc.sw_l != this->last_data_.sw_l) {
-      this->dr16_event_.Active(
-          static_cast<uint32_t>(SwitchPos::DR16_SW_L_POS_TOP) + curr_rc.sw_l -
-          1);
+    if (curr_rc.sw_l != this->last_data_.sw_l)
+    {
+      this->dr16_event_.Active(static_cast<uint32_t>(SwitchPos::DR16_SW_L_POS_TOP) +
+                               curr_rc.sw_l - 1);
     }
-    if (curr_rc.sw_r != this->last_data_.sw_r) {
-      this->dr16_event_.Active(
-          static_cast<uint32_t>(SwitchPos::DR16_SW_R_POS_TOP) + curr_rc.sw_r -
-          1);
+    if (curr_rc.sw_r != this->last_data_.sw_r)
+    {
+      this->dr16_event_.Active(static_cast<uint32_t>(SwitchPos::DR16_SW_R_POS_TOP) +
+                               curr_rc.sw_r - 1);
     }
 
     uint32_t modifier_offset = 0;
 
-    if (curr_rc.key & RawValue(Key::KEY_SHIFT)) {
+    if (curr_rc.key & RawValue(Key::KEY_SHIFT))
+    {
       modifier_offset += static_cast<uint32_t>(Key::KEY_NUM);
     }
-    if (curr_rc.key & RawValue(Key::KEY_CTRL)) {
+    if (curr_rc.key & RawValue(Key::KEY_CTRL))
+    {
       modifier_offset += 2 * static_cast<uint32_t>(Key::KEY_NUM);
     }
 
-    for (int i = 0; i < 16; i++) {
-      if ((curr_rc.key & (1 << i)) && !(this->last_data_.key & (1 << i))) {
-        this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_W) + i +
-                                 modifier_offset);
+    for (int i = 0; i < 16; i++)
+    {
+      if ((curr_rc.key & (1 << i)) && !(this->last_data_.key & (1 << i)))
+      {
+        this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_W) + i + modifier_offset);
       }
     }
 
@@ -277,46 +284,49 @@ class DR16 : public LibXR::Application {
     constexpr float INV_FULL_RANGE = 1.0f / FULL_RANGE;
     constexpr float MOUSE_SCALER = 20.0f / 32768.0f;
 
-    if (curr_rc.press_l && !this->last_data_.press_l) {
+    if (curr_rc.press_l && !this->last_data_.press_l)
+    {
       this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_L_PRESS));
     }
-    if (!curr_rc.press_l && this->last_data_.press_l) {
+    if (!curr_rc.press_l && this->last_data_.press_l)
+    {
       this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_L_RELEASE));
     }
-    if (curr_rc.press_r && !this->last_data_.press_r) {
+    if (curr_rc.press_r && !this->last_data_.press_r)
+    {
       this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_R_PRESS));
     }
-    if (!curr_rc.press_r && this->last_data_.press_r) {
+    if (!curr_rc.press_r && this->last_data_.press_r)
+    {
       this->dr16_event_.Active(static_cast<uint32_t>(Key::KEY_R_RELEASE));
     }
 
     output_data.chassis.x =
-        2 * (static_cast<float>(curr_rc.ch_l_x) - DR16_CH_VALUE_MID) *
-        INV_FULL_RANGE;
+        2 * (static_cast<float>(curr_rc.ch_l_x) - DR16_CH_VALUE_MID) * INV_FULL_RANGE;
     output_data.chassis.y =
-        2 * (static_cast<float>(curr_rc.ch_l_y) - DR16_CH_VALUE_MID) *
-        INV_FULL_RANGE;
+        2 * (static_cast<float>(curr_rc.ch_l_y) - DR16_CH_VALUE_MID) * INV_FULL_RANGE;
     output_data.chassis.z =
-        -2 * (static_cast<float>(curr_rc.ch_r_x) - DR16_CH_VALUE_MID) *
-        INV_FULL_RANGE;
+        -2 * (static_cast<float>(curr_rc.ch_r_x) - DR16_CH_VALUE_MID) * INV_FULL_RANGE;
 
     output_data.gimbal.yaw =
-        -2 * (static_cast<float>(curr_rc.ch_r_x) - DR16_CH_VALUE_MID) *
-        INV_FULL_RANGE;
+        -2 * (static_cast<float>(curr_rc.ch_r_x) - DR16_CH_VALUE_MID) * INV_FULL_RANGE;
     output_data.gimbal.pit =
-        2 * (static_cast<float>(curr_rc.ch_r_y) - DR16_CH_VALUE_MID) *
-        INV_FULL_RANGE;
+        2 * (static_cast<float>(curr_rc.ch_r_y) - DR16_CH_VALUE_MID) * INV_FULL_RANGE;
 
-    if (curr_rc.key & RawValue(Key::KEY_A)) {
+    if (curr_rc.key & RawValue(Key::KEY_A))
+    {
       output_data.chassis.x -= 1.0f;
     }
-    if (curr_rc.key & RawValue(Key::KEY_D)) {
+    if (curr_rc.key & RawValue(Key::KEY_D))
+    {
       output_data.chassis.x += 1.0f;
     }
-    if (curr_rc.key & RawValue(Key::KEY_S)) {
+    if (curr_rc.key & RawValue(Key::KEY_S))
+    {
       output_data.chassis.y -= 1.0f;
     }
-    if (curr_rc.key & RawValue(Key::KEY_W)) {
+    if (curr_rc.key & RawValue(Key::KEY_W))
+    {
       output_data.chassis.y += 1.0f;
     }
 
@@ -325,13 +335,13 @@ class DR16 : public LibXR::Application {
     output_data.gimbal.pit += static_cast<float>(curr_rc.y) * MOUSE_SCALER;
     output_data.gimbal.yaw += -static_cast<float>(curr_rc.x) * MOUSE_SCALER;
 
-    if (curr_rc.key & RawValue(Key::KEY_SHIFT) or
-        curr_rc.res == DR16_CH_VALUE_MAX) {
+    if (curr_rc.key & RawValue(Key::KEY_SHIFT) or curr_rc.res == DR16_CH_VALUE_MAX)
+    {
       output_data.chassis.self_define = CMD::ChasStat::BOOST;
     }
 
-    if (curr_rc.key & RawValue(Key::KEY_C) or
-        curr_rc.res == DR16_CH_VALUE_MIN) {
+    if (curr_rc.key & RawValue(Key::KEY_C) or curr_rc.res == DR16_CH_VALUE_MIN)
+    {
       output_data.chassis.self_define = CMD::ChasStat::STRETCH;
     }
 
@@ -351,7 +361,8 @@ class DR16 : public LibXR::Application {
     return LibXR::ErrorCode::OK;
   }
 
-  void Offline() {
+  void Offline()
+  {
     cmd_data_.chassis.x = 0;
     cmd_data_.chassis.y = 0;
     cmd_data_.chassis.z = 0;
@@ -372,7 +383,8 @@ class DR16 : public LibXR::Application {
   /**
    * @brief 用于调试的数据视图结构体（非位域）
    */
-  struct DataView {
+  struct DataView
+  {
     uint16_t ch_r_x; /* 右摇杆X轴 */
     uint16_t ch_r_y; /* 右摇杆Y轴 */
     uint16_t ch_l_x; /* 左摇杆X轴 */
@@ -393,7 +405,8 @@ class DR16 : public LibXR::Application {
    * @param data_view 输出的数据视图
    * @param data 输入的位域数据
    */
-  void DataviewToData(DataView& data_view, Data& data) {
+  void DataviewToData(DataView& data_view, Data& data)
+  {
     data_view.ch_r_x = data.ch_r_x;
     data_view.ch_r_y = data.ch_r_y;
     data_view.ch_l_x = data.ch_l_x;
@@ -426,9 +439,11 @@ class DR16 : public LibXR::Application {
   LibXR::MillisecondTimestamp last_time_{}; /* 上次接收时间 */
 
   /*--------------------------工具函数-------------------------------------------------*/
-  void CheckoutOffline() {
+  void CheckoutOffline()
+  {
     auto current_time = LibXR::Timebase::GetMilliseconds();
-    if ((current_time - last_time_).ToMillisecond() > 100) {
+    if ((current_time - last_time_).ToMillisecond() > 100)
+    {
       Offline();
     }
   }
