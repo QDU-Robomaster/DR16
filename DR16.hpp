@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 /* clang-format off */
 /* === MODULE MANIFEST V2 ===
 module_name: DR16
@@ -135,20 +137,28 @@ class DR16
     uint16_t res;
   } Data;
 
+  struct Param
+  {
+    uint32_t task_stack_depth_uart;  ///< UART任务栈深度
+    LibXR::Thread::Priority thread_priority_uart;
+  };
+
   /**
    * @brief DR16构造函数
    * @param cmd 控制命令对象引用
-   * @param task_stack_depth_uart UART任务栈深度
+   * @param param Value configuration.
    * @param cmd_data_tp_name CMD数据主题名称
    */
-  DR16(LibXR::UART* external_uart_dr16, CMD& cmd, uint32_t task_stack_depth_uart,
-       LibXR::Thread::Priority thread_priority_uart = LibXR::Thread::Priority::MEDIUM)
-      : cmd_(&cmd), uart_(external_uart_dr16), sem_(0), op_(sem_, 4)
+  DR16(
+      LibXR::UART& uart,
+      CMD& cmd,
+      const Param& param = {.task_stack_depth_uart = 2048, .thread_priority_uart = LibXR::Thread::Priority::MEDIUM})
+      : cmd_(&cmd), uart_(std::addressof(uart)), sem_(0), op_(sem_, 4)
   {
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
     /* 创建UART线程 */
-    thread_uart_.Create(this, ThreadDr16, "uart_dr16", task_stack_depth_uart,
-                        thread_priority_uart);
+    thread_uart_.Create(this, ThreadDr16, "uart_dr16", param.task_stack_depth_uart,
+                        param.thread_priority_uart);
   }
 
   /**
