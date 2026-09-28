@@ -4,7 +4,6 @@
 
 /* clang-format off */
 /* === MODULE MANIFEST V2 ===
-module_name: DR16
 module_description: Receiver parsing
 depends:
 - id: QDU-Robomaster/CMD
