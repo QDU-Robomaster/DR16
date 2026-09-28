@@ -167,11 +167,6 @@ class DR16
   LibXR::Event& GetEvent() { return dr16_event_; }
 
   /**
-   * @brief 监控函数重写
-   */
-  void OnMonitor() {}
-
-  /**
    * @brief DR16 UART读取线程函数
    * @param dr16 DR16实例指针
    */
