@@ -40,7 +40,7 @@ The mapping to `CMD::Data` is:
 DR16(LibXR::UART& uart,
      CMD& cmd,
      const Param& param = {.task_stack_depth_uart = 2048,
-                           .thread_priority_uart = LibXR::Thread::Priority::MEDIUM});
+                           .thread_priority_uart = LibXR::Thread::Priority::HIGH});
 ```
 
 依赖：
@@ -51,7 +51,7 @@ DR16(LibXR::UART& uart,
 配置参数（`Param`）：
 
 - `task_stack_depth_uart`：接收线程栈深，默认 2048。
-- `thread_priority_uart`：接收线程优先级，默认 `LibXR::Thread::Priority::MEDIUM`。
+- `thread_priority_uart`：接收线程优先级，默认 `LibXR::Thread::Priority::HIGH`。
 
 Dependencies:
 
@@ -61,7 +61,7 @@ Dependencies:
 Configuration parameters (`Param`):
 
 - `task_stack_depth_uart`: receive thread stack depth, default 2048.
-- `thread_priority_uart`: receive thread priority, default `LibXR::Thread::Priority::MEDIUM`.
+- `thread_priority_uart`: receive thread priority, default `LibXR::Thread::Priority::HIGH`.
 
 ## 3. Topic
 
@@ -82,7 +82,7 @@ modules:
       - cmd: cmd
       - param:
           task_stack_depth_uart: 1536
-          thread_priority_uart: LibXR::Thread::Priority::MEDIUM
+          thread_priority_uart: LibXR::Thread::Priority::HIGH
 ```
 
 ## 5. 依赖与硬件 / Dependencies and Hardware

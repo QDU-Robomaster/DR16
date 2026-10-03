@@ -187,7 +187,7 @@ class DR16
    */
   DR16(LibXR::UART& uart, CMD& cmd,
        const Param& param = {.task_stack_depth_uart = 2048,
-                             .thread_priority_uart = LibXR::Thread::Priority::MEDIUM})
+                             .thread_priority_uart = LibXR::Thread::Priority::HIGH})
       : cmd_(&cmd), uart_(std::addressof(uart)), sem_(0), op_(sem_, 4)
   {
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
