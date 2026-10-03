@@ -20,67 +20,72 @@ depends:
 #include "timebase.hpp"
 #include "uart.hpp"
 
-/**
- * @brief DR16遥控器通道值范围定义
- */
-#define DR16_CH_VALUE_MIN (364u)  /* 通道最小值 */
-#define DR16_CH_VALUE_MID (1024u) /* 通道中间值 */
-#define DR16_CH_VALUE_MAX (1684u) /* 通道最大值 */
+#define DR16_CH_VALUE_MIN (364u)   ///< 通道最小值 Minimum channel value
+#define DR16_CH_VALUE_MID (1024u)  ///< 通道中间值 Middle channel value
+#define DR16_CH_VALUE_MAX (1684u)  ///< 通道最大值 Maximum channel value
 
 /**
- * @class DR16
- * @brief DR16遥控器数据解析类
- * @details 负责接收和解析DR16遥控器的数据，包括摇杆、拨杆和按键等信息
+ * @brief DR16 遥控接收机解析模块：从 UART 接收 DBUS 数据，转换为 CMD 控制数据并发出按键事件。
+ *        DR16 receiver parsing Module that receives DBUS data from a UART, converts it to
+ *        CMD control data and emits key events.
  */
 class DR16
 {
  public:
   /**
-   * @brief 拨杆开关位置枚举
+   * @brief 拨杆位置事件 ID。
+   *        Switch position event IDs.
    */
   enum class SwitchPos : uint8_t
   {
-    DR16_SW_L_POS_TOP = 0x00,
-    DR16_SW_L_POS_BOT = 0x01,
-    DR16_SW_L_POS_MID = 0x02,
-    DR16_SW_R_POS_TOP = 0x03,
-    DR16_SW_R_POS_BOT = 0x04,
-    DR16_SW_R_POS_MID = 0x05,
-    DR16_SW_POS_NUM = 6
+    DR16_SW_L_POS_TOP = 0x00,  ///< 左拨杆拨到上位 Left switch moved to the top position
+    DR16_SW_L_POS_BOT = 0x01,  ///< 左拨杆拨到下位 Left switch moved to the bottom position
+    DR16_SW_L_POS_MID = 0x02,  ///< 左拨杆拨到中位 Left switch moved to the middle position
+    DR16_SW_R_POS_TOP = 0x03,  ///< 右拨杆拨到上位 Right switch moved to the top position
+    DR16_SW_R_POS_BOT = 0x04,  ///< 右拨杆拨到下位 Right switch moved to the bottom position
+    DR16_SW_R_POS_MID = 0x05,  ///< 右拨杆拨到中位 Right switch moved to the middle position
+    DR16_SW_POS_NUM = 6        ///< 拨杆事件数量 Number of switch events
   };
 
   /**
-   * @brief 按键枚举
+   * @brief 键盘与鼠标事件 ID，键盘按键的顺序与 DBUS 按键位一致，编号接在拨杆事件之后。
+   *        Keyboard and mouse event IDs. The keyboard keys follow the order of the DBUS key
+   *        bits, and the numbers continue after the switch events.
    */
   enum class Key : uint8_t
   {
-    KEY_W = static_cast<uint8_t>(SwitchPos::DR16_SW_POS_NUM),
-    KEY_S,
-    KEY_A,
-    KEY_D,
-    KEY_SHIFT,
-    KEY_CTRL,
-    KEY_Q,
-    KEY_E,
-    KEY_R,
-    KEY_F,
-    KEY_G,
-    KEY_Z,
-    KEY_X,
-    KEY_C,
-    KEY_V,
-    KEY_B,
-    KEY_L_PRESS,
-    KEY_R_PRESS,
-    KEY_L_RELEASE,
-    KEY_R_RELEASE,
-    KEY_NUM,
+    KEY_W = static_cast<uint8_t>(SwitchPos::DR16_SW_POS_NUM),  ///< W 键 W key
+    KEY_S,          ///< S 键 S key
+    KEY_A,          ///< A 键 A key
+    KEY_D,          ///< D 键 D key
+    KEY_SHIFT,      ///< Shift 键 Shift key
+    KEY_CTRL,       ///< Ctrl 键 Ctrl key
+    KEY_Q,          ///< Q 键 Q key
+    KEY_E,          ///< E 键 E key
+    KEY_R,          ///< R 键 R key
+    KEY_F,          ///< F 键 F key
+    KEY_G,          ///< G 键 G key
+    KEY_Z,          ///< Z 键 Z key
+    KEY_X,          ///< X 键 X key
+    KEY_C,          ///< C 键 C key
+    KEY_V,          ///< V 键 V key
+    KEY_B,          ///< B 键 B key
+    KEY_L_PRESS,    ///< 鼠标左键按下 Left mouse button pressed
+    KEY_R_PRESS,    ///< 鼠标右键按下 Right mouse button pressed
+    KEY_L_RELEASE,  ///< 鼠标左键释放 Left mouse button released
+    KEY_R_RELEASE,  ///< 鼠标右键释放 Right mouse button released
+    KEY_NUM,        ///< 事件 ID 数量，也是修饰键事件 ID 的偏移单位
+                    ///< Number of event IDs, also the offset unit of the modifier event IDs
   };
 
   /**
-   * @brief 计算Shift组合键的编码值
-   * @param key 基础按键
-   * @return Shift组合键的编码值
+   * @brief 计算 Shift 组合键的事件 ID。
+   *        Compute the event ID of a key pressed together with Shift.
+   *
+   * @param key 基础按键。
+   *            Base key.
+   * @return Shift 组合键的事件 ID。
+   *         Event ID of the Shift combination.
    */
   constexpr uint32_t ShiftWith(Key key)
   {
@@ -88,9 +93,13 @@ class DR16
   }
 
   /**
-   * @brief 计算Ctrl组合键的编码值
-   * @param key 基础按键
-   * @return Ctrl组合键的编码值
+   * @brief 计算 Ctrl 组合键的事件 ID。
+   *        Compute the event ID of a key pressed together with Ctrl.
+   *
+   * @param key 基础按键。
+   *            Base key.
+   * @return Ctrl 组合键的事件 ID。
+   *         Event ID of the Ctrl combination.
    */
   constexpr uint32_t CtrlWith(Key key)
   {
@@ -98,15 +107,28 @@ class DR16
   }
 
   /**
-   * @brief 计算Shift+Ctrl组合键的编码值
-   * @param key 基础按键
-   * @return Shift+Ctrl组合键的编码值
+   * @brief 计算 Shift + Ctrl 组合键的事件 ID。
+   *        Compute the event ID of a key pressed together with Shift and Ctrl.
+   *
+   * @param key 基础按键。
+   *            Base key.
+   * @return Shift + Ctrl 组合键的事件 ID。
+   *         Event ID of the Shift + Ctrl combination.
    */
   constexpr uint32_t ShiftCtrlWith(Key key)
   {
     return static_cast<uint8_t>(key) + 3 * static_cast<uint8_t>(Key::KEY_NUM);
   }
 
+  /**
+   * @brief 返回键盘按键在 DBUS 按键位中的掩码。
+   *        Return the mask of a keyboard key in the DBUS key bits.
+   *
+   * @param key 键盘按键。
+   *            Keyboard key.
+   * @return 按键位掩码；`key` 不小于 `Key::KEY_NUM` 时为 0。
+   *         Key bit mask; 0 when `key` is not less than `Key::KEY_NUM`.
+   */
   constexpr uint32_t RawValue(Key key)
   {
     if (key >= Key::KEY_NUM)
@@ -116,32 +138,48 @@ class DR16
     return 1 << (static_cast<uint8_t>(key) - static_cast<uint8_t>(Key::KEY_W));
   }
 
+  /**
+   * @brief 解析后的 DBUS 帧。
+   *        Parsed DBUS frame.
+   */
   typedef struct __attribute__((packed))
   {
-    uint16_t ch_r_x;
-    uint16_t ch_r_y;
-    uint16_t ch_l_x;
-    uint16_t ch_l_y;
-    uint8_t sw_r;
-    uint8_t sw_l;
-    int16_t x;
-    int16_t y;
-    int16_t z;
-    uint8_t press_l;
-    uint8_t press_r;
-    uint16_t key;
-    uint16_t res;
+    uint16_t ch_r_x;  ///< 右摇杆 X 通道 Right stick X channel
+    uint16_t ch_r_y;  ///< 右摇杆 Y 通道 Right stick Y channel
+    uint16_t ch_l_x;  ///< 左摇杆 X 通道 Left stick X channel
+    uint16_t ch_l_y;  ///< 左摇杆 Y 通道 Left stick Y channel
+    uint8_t sw_r;     ///< 右拨杆位置 Right switch position
+    uint8_t sw_l;     ///< 左拨杆位置 Left switch position
+    int16_t x;        ///< 鼠标 X 轴移动 Mouse X movement
+    int16_t y;        ///< 鼠标 Y 轴移动 Mouse Y movement
+    int16_t z;        ///< 鼠标 Z 轴移动 Mouse Z movement
+    uint8_t press_l;  ///< 鼠标左键状态 Left mouse button state
+    uint8_t press_r;  ///< 鼠标右键状态 Right mouse button state
+    uint16_t key;     ///< 键盘按键位 Keyboard key bits
+    uint16_t res;     ///< 拨轮值 Wheel value
   } Data;
 
+  /**
+   * @brief DR16 配置参数。
+   *        DR16 configuration parameters.
+   */
   struct Param
   {
-    uint32_t task_stack_depth_uart;  ///< UART任务栈深度
-    LibXR::Thread::Priority thread_priority_uart;
+    uint32_t task_stack_depth_uart;  ///< 接收线程栈深 Receive thread stack depth
+    LibXR::Thread::Priority thread_priority_uart;  ///< 接收线程优先级 Receive thread priority
   };
 
   /**
-   * @brief DR16构造函数
-   * @param cmd 控制命令对象引用
+   * @brief 构造 DR16，配置 UART 并创建接收线程。
+   *        Construct DR16, configure the UART and create the receive thread.
+   *
+   * @param uart 连接 DR16 接收机的 UART，被设置为 100000 bit/s、偶校验、8 数据位、1 停止位。
+   *             UART connected to the DR16 receiver, set to 100000 bit/s, even parity, 8
+   *             data bits and 1 stop bit.
+   * @param cmd CMD 实例，接收解析后的控制数据。
+   *            CMD instance that receives the parsed control data.
+   * @param param 配置参数。
+   *              Configuration parameters.
    */
   DR16(
       LibXR::UART& uart,
@@ -156,14 +194,22 @@ class DR16
   }
 
   /**
-   * @brief 获取 DR16 的事件处理器
-   * @return LibXR::Event& 事件处理器的引用
+   * @brief 获取 DR16 的事件对象，拨杆、按键和鼠标事件在其上触发。
+   *        Get the event object of DR16, on which the switch, key and mouse events are
+   *        activated.
+   *
+   * @return 事件对象的引用。
+   *         Reference to the event object.
    */
   LibXR::Event& GetEvent() { return dr16_event_; }
 
   /**
-   * @brief DR16 UART读取线程函数
-   * @param dr16 DR16实例指针
+   * @brief 接收线程函数：每 5 ms 读取并解析一帧 DBUS 数据，超过 100 ms 无有效帧时判定为离线。
+   *        Receive thread function that reads and parses one DBUS frame every 5 ms and
+   *        treats DR16 as offline when no valid frame arrives for more than 100 ms.
+   *
+   * @param dr16 DR16 实例指针。
+   *             Pointer to the DR16 instance.
    */
   static void ThreadDr16(DR16* dr16)
   {
@@ -193,10 +239,18 @@ class DR16
   }
 
   /**
-   * @brief 解析 DBUS 原始数据并生成控制指令
-   * @param raw_data 18字节的原始接收缓冲 (来自 ThreadDr16 的 rx_buffer)
-   * @param output_data 解析后的 CMD 数据 (用于提交给云台)
-   * @return true 解析成功, false 数据无效
+   * @brief 解析 DBUS 原始数据，生成 CMD 控制数据并触发拨杆、按键和鼠标事件。
+   *        Parse raw DBUS data, generate the CMD control data and activate the switch,
+   *        key and mouse events.
+   *
+   * @param raw_data 18 字节的 DBUS 原始数据。
+   *                 18 bytes of raw DBUS data.
+   * @param output_data 输出的 CMD 控制数据。
+   *                    Output CMD control data.
+   * @return `OK` 表示解析成功；`PTR_NULL` 表示 `raw_data` 为空；`CHECK_ERR` 表示摇杆通道超出
+   *         364 至 1684 或拨杆值为 0。
+   *         `OK` on success; `PTR_NULL` when `raw_data` is null; `CHECK_ERR` when a stick
+   *         channel is outside 364 to 1684 or a switch value is 0.
    */
   LibXR::ErrorCode ParseRC(const uint8_t* raw_data, CMD::Data& output_data)
   {
@@ -357,6 +411,11 @@ class DR16
     return LibXR::ErrorCode::OK;
   }
 
+  /**
+   * @brief 向 CMD 提交离线数据：控制量全零，底盘与云台在线标志为 false。
+   *        Submit offline data to CMD: all control values zero and the chassis and gimbal
+   *        online flags false.
+   */
   void Offline()
   {
     cmd_data_.chassis.x = 0;
@@ -377,29 +436,34 @@ class DR16
 
 #ifdef LIBXR_DEBUG_BUILD
   /**
-   * @brief 用于调试的数据视图结构体（非位域）
+   * @brief 调试用的非紧凑数据视图，字段与 `Data` 相同。
+   *        Unpacked data view for debugging, with the same fields as `Data`.
    */
   struct DataView
   {
-    uint16_t ch_r_x; /* 右摇杆X轴 */
-    uint16_t ch_r_y; /* 右摇杆Y轴 */
-    uint16_t ch_l_x; /* 左摇杆X轴 */
-    uint16_t ch_l_y; /* 左摇杆Y轴 */
-    uint8_t sw_r;    /* 右拨杆 */
-    uint8_t sw_l;    /* 左拨杆 */
-    int16_t x;       /* 鼠标X轴移动 */
-    int16_t y;       /* 鼠标Y轴移动 */
-    int16_t z;       /* 鼠标Z轴移动 */
-    uint8_t press_l; /* 鼠标左键状态 */
-    uint8_t press_r; /* 鼠标右键状态 */
-    uint16_t key;    /* 键盘按键状态 */
-    uint16_t res;    /* 保留字段 */
+    uint16_t ch_r_x;  ///< 右摇杆 X 通道 Right stick X channel
+    uint16_t ch_r_y;  ///< 右摇杆 Y 通道 Right stick Y channel
+    uint16_t ch_l_x;  ///< 左摇杆 X 通道 Left stick X channel
+    uint16_t ch_l_y;  ///< 左摇杆 Y 通道 Left stick Y channel
+    uint8_t sw_r;     ///< 右拨杆位置 Right switch position
+    uint8_t sw_l;     ///< 左拨杆位置 Left switch position
+    int16_t x;        ///< 鼠标 X 轴移动 Mouse X movement
+    int16_t y;        ///< 鼠标 Y 轴移动 Mouse Y movement
+    int16_t z;        ///< 鼠标 Z 轴移动 Mouse Z movement
+    uint8_t press_l;  ///< 鼠标左键状态 Left mouse button state
+    uint8_t press_r;  ///< 鼠标右键状态 Right mouse button state
+    uint16_t key;     ///< 键盘按键位 Keyboard key bits
+    uint16_t res;     ///< 拨轮值 Wheel value
   };
 
   /**
-   * @brief 将位域数据转换为普通结构体数据（调试用）
-   * @param data_view 输出的数据视图
-   * @param data 输入的位域数据
+   * @brief 将紧凑的 `Data` 复制到 `DataView`。
+   *        Copy a packed `Data` into a `DataView`.
+   *
+   * @param data_view 输出的数据视图。
+   *                  Output data view.
+   * @param data 输入的数据帧。
+   *             Input data frame.
    */
   void DataviewToData(DataView& data_view, Data& data)
   {
