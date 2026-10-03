@@ -4,7 +4,7 @@
 
 /* clang-format off */
 /* === MODULE MANIFEST V2 ===
-module_description: Receiver parsing
+module_description: DR16 遥控接收机解析模块：从 UART 接收 DBUS 数据并转换为 CMD 控制数据 / Module that parses DR16 receiver DBUS data from a UART and passes it to CMD as control data
 depends:
 - id: QDU-Robomaster/CMD
   ref: same-or-dev
@@ -30,7 +30,7 @@ depends:
 /**
  * @class DR16
  * @brief DR16遥控器数据解析类
- * @details 负责接收和解析DR16遥控器的数据，包括摇杆���拨杆和按键等信息
+ * @details 负责接收和解析DR16遥控器的数据，包括摇杆、拨杆和按键等信息
  */
 class DR16
 {
@@ -50,10 +50,7 @@ class DR16
   };
 
   /**
-   * @brief 按键枚举    SET_MODE_RELAX,
-    SET_MODE_FOLLOW,
-    SET_MODE_ROTOR,
-    SET_MODE_INDENPENDENT,
+   * @brief 按键枚举
    */
   enum class Key : uint8_t
   {
@@ -145,8 +142,6 @@ class DR16
   /**
    * @brief DR16构造函数
    * @param cmd 控制命令对象引用
-   * @param param Value configuration.
-   * @param cmd_data_tp_name CMD数据主题名称
    */
   DR16(
       LibXR::UART& uart,
@@ -197,9 +192,6 @@ class DR16
     }
   }
 
-  /**
-   * @brief 解析遥控器数据并转换为控制命令
-   */
   /**
    * @brief 解析 DBUS 原始数据并生成控制指令
    * @param raw_data 18字节的原始接收缓冲 (来自 ThreadDr16 的 rx_buffer)
@@ -442,7 +434,6 @@ class DR16
   LibXR::ReadOperation op_;                 /* 读操作（阻塞型） */
   LibXR::MillisecondTimestamp last_time_{}; /* 上次接收时间 */
 
-  /*--------------------------工具函数-------------------------------------------------*/
   void CheckoutOffline()
   {
     auto current_time = LibXR::Timebase::GetMilliseconds();
