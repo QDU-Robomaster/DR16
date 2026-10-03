@@ -25,9 +25,10 @@ depends:
 #define DR16_CH_VALUE_MAX (1684u)  ///< 通道最大值 Maximum channel value
 
 /**
- * @brief DR16 遥控接收机解析模块：从 UART 接收 DBUS 数据，转换为 CMD 控制数据并发出按键事件。
- *        DR16 receiver parsing Module that receives DBUS data from a UART, converts it to
- *        CMD control data and emits key events.
+ * @brief DR16 遥控接收机解析模块：从 UART 接收 DBUS 数据，转换为 CMD 控制数据
+ *        并发出按键事件。
+ *        DR16 receiver parsing Module that receives DBUS data from a UART, converts it
+ *        to CMD control data and emits key events.
  */
 class DR16
 {
@@ -38,19 +39,19 @@ class DR16
    */
   enum class SwitchPos : uint8_t
   {
-    DR16_SW_L_POS_TOP = 0x00,  ///< 左拨杆拨到上位 Left switch moved to the top position
-    DR16_SW_L_POS_BOT = 0x01,  ///< 左拨杆拨到下位 Left switch moved to the bottom position
-    DR16_SW_L_POS_MID = 0x02,  ///< 左拨杆拨到中位 Left switch moved to the middle position
-    DR16_SW_R_POS_TOP = 0x03,  ///< 右拨杆拨到上位 Right switch moved to the top position
-    DR16_SW_R_POS_BOT = 0x04,  ///< 右拨杆拨到下位 Right switch moved to the bottom position
-    DR16_SW_R_POS_MID = 0x05,  ///< 右拨杆拨到中位 Right switch moved to the middle position
+    DR16_SW_L_POS_TOP = 0x00,  ///< 左拨杆上位 Left switch top position
+    DR16_SW_L_POS_BOT = 0x01,  ///< 左拨杆下位 Left switch bottom position
+    DR16_SW_L_POS_MID = 0x02,  ///< 左拨杆中位 Left switch middle position
+    DR16_SW_R_POS_TOP = 0x03,  ///< 右拨杆上位 Right switch top position
+    DR16_SW_R_POS_BOT = 0x04,  ///< 右拨杆下位 Right switch bottom position
+    DR16_SW_R_POS_MID = 0x05,  ///< 右拨杆中位 Right switch middle position
     DR16_SW_POS_NUM = 6        ///< 拨杆事件数量 Number of switch events
   };
 
   /**
    * @brief 键盘与鼠标事件 ID，键盘按键的顺序与 DBUS 按键位一致，编号接在拨杆事件之后。
-   *        Keyboard and mouse event IDs. The keyboard keys follow the order of the DBUS key
-   *        bits, and the numbers continue after the switch events.
+   *        Keyboard and mouse event IDs. The keyboard keys follow the order of the DBUS
+   *        key bits, and the numbers continue after the switch events.
    */
   enum class Key : uint8_t
   {
@@ -75,7 +76,7 @@ class DR16
     KEY_L_RELEASE,  ///< 鼠标左键释放 Left mouse button released
     KEY_R_RELEASE,  ///< 鼠标右键释放 Right mouse button released
     KEY_NUM,        ///< 事件 ID 数量，也是修饰键事件 ID 的偏移单位
-                    ///< Number of event IDs, also the offset unit of the modifier event IDs
+                    ///< Number of event IDs, also the offset unit of modifier IDs
   };
 
   /**
@@ -165,26 +166,28 @@ class DR16
    */
   struct Param
   {
-    uint32_t task_stack_depth_uart;  ///< 接收线程栈深 Receive thread stack depth
-    LibXR::Thread::Priority thread_priority_uart;  ///< 接收线程优先级 Receive thread priority
+    uint32_t task_stack_depth_uart;  ///< 接收线程栈深
+                                     ///< Receive thread stack depth
+    LibXR::Thread::Priority thread_priority_uart;  ///< 接收线程优先级
+                                                   ///< Receive thread priority
   };
 
   /**
    * @brief 构造 DR16，配置 UART 并创建接收线程。
    *        Construct DR16, configure the UART and create the receive thread.
    *
-   * @param uart 连接 DR16 接收机的 UART，被设置为 100000 bit/s、偶校验、8 数据位、1 停止位。
-   *             UART connected to the DR16 receiver, set to 100000 bit/s, even parity, 8
-   *             data bits and 1 stop bit.
+   * @param uart 连接 DR16 接收机的 UART，被设置为 100000 bit/s、偶校验、8 数据位、
+   *             1 停止位。
+   *             UART connected to the DR16 receiver, set to 100000 bit/s, even parity,
+   *             8 data bits and 1 stop bit.
    * @param cmd CMD 实例，接收解析后的控制数据。
    *            CMD instance that receives the parsed control data.
    * @param param 配置参数。
    *              Configuration parameters.
    */
-  DR16(
-      LibXR::UART& uart,
-      CMD& cmd,
-      const Param& param = {.task_stack_depth_uart = 2048, .thread_priority_uart = LibXR::Thread::Priority::MEDIUM})
+  DR16(LibXR::UART& uart, CMD& cmd,
+       const Param& param = {.task_stack_depth_uart = 2048,
+                             .thread_priority_uart = LibXR::Thread::Priority::MEDIUM})
       : cmd_(&cmd), uart_(std::addressof(uart)), sem_(0), op_(sem_, 4)
   {
     uart_->SetConfig({100000, LibXR::UART::Parity::EVEN, 8, 1});
@@ -204,7 +207,8 @@ class DR16
   LibXR::Event& GetEvent() { return dr16_event_; }
 
   /**
-   * @brief 接收线程函数：每 5 ms 读取并解析一帧 DBUS 数据，超过 100 ms 无有效帧时判定为离线。
+   * @brief 接收线程函数：每 5 ms 读取并解析一帧 DBUS 数据，超过 100 ms 无有效帧时
+   *        判定为离线。
    *        Receive thread function that reads and parses one DBUS frame every 5 ms and
    *        treats DR16 as offline when no valid frame arrives for more than 100 ms.
    *
@@ -247,8 +251,8 @@ class DR16
    *                 18 bytes of raw DBUS data.
    * @param output_data 输出的 CMD 控制数据。
    *                    Output CMD control data.
-   * @return `OK` 表示解析成功；`PTR_NULL` 表示 `raw_data` 为空；`CHECK_ERR` 表示摇杆通道超出
-   *         364 至 1684 或拨杆值为 0。
+   * @return `OK` 表示解析成功；`PTR_NULL` 表示 `raw_data` 为空；`CHECK_ERR` 表示
+   *         摇杆通道超出 364 至 1684 或拨杆值为 0。
    *         `OK` on success; `PTR_NULL` when `raw_data` is null; `CHECK_ERR` when a stick
    *         channel is outside 364 to 1684 or a switch value is 0.
    */
